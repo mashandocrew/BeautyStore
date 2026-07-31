@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S. // Seguimiento de Cotizaciones</title>
+<style>
+  :root{
+    --bg: #0A0E12;
+    --panel: #10161C;
+    --panel-2: #151C23;
+    --line: #223038;
+    --cyan: #4DD8E6;
+    --cyan-dim: #2A5A62;
+    --amber: #E8A93E;
+    --red: #E1553F;
+    --green: #55C58A;
+    --text: #E8F1F4;
+    --muted: #7C8E96;
+    --font-display: 'Rajdhani', 'Segoe UI', sans-serif;
+    --font-body: 'Inter', 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+  * { box-sizing: border-box; }
+  body{
+    margin:0; background: radial-gradient(ellipse at top, #0D1319 0%, var(--bg) 60%);
+    color: var(--text); font-family: var(--font-body); min-height: 100vh;
+    padding: 28px 20px 60px;
+  }
+
+  .scanline{
+    position: fixed; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity:0.5; animation: scan 6s linear infinite; pointer-events:none; z-index: 50;
+  }
+  @keyframes scan { 0%{transform:translateY(0); opacity:0;} 10%{opacity:.6;} 90%{opacity:.6;} 100%{transform:translateY(100vh); opacity:0;} }
+
+  .wrap{ max-width: 1180px; margin: 0 auto; }
+
+  header{ display:flex; justify-content:space-between; align-items:flex-end; margin-bottom: 22px; border-bottom:1px solid var(--line); padding-bottom:16px; flex-wrap:wrap; gap:12px;}
+  .brand{ display:flex; align-items:center; gap:14px; }
+  .brand .core{
+    width:42px; height:42px; border-radius:50%;
+    border: 2px solid var(--cyan); position:relative;
+    box-shadow: 0 0 16px var(--cyan-dim), inset 0 0 10px var(--cyan-dim);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  .brand .core::after{ content:''; position:absolute; inset:8px; border-radius:50%; background: var(--cyan); box-shadow:0 0 12px var(--cyan);}
+  @keyframes pulse{ 0%,100%{box-shadow:0 0 10px var(--cyan-dim), inset 0 0 6px var(--cyan-dim);} 50%{box-shadow:0 0 22px var(--cyan), inset 0 0 12px var(--cyan-dim);} }
+  h1{ font-family: var(--font-display); font-size:26px; letter-spacing:1.5px; margin:0; font-weight:700; text-transform:uppercase;}
+  .subtitle{ color: var(--muted); font-size:12.5px; letter-spacing:1px; font-family:var(--font-mono); margin-top:2px;}
+  .statline{ font-family: var(--font-mono); font-size:11px; color: var(--cyan); text-align:right; letter-spacing:0.5px;}
+  .statline span{ color: var(--muted); }
+
+  .grid{ display:grid; grid-template-columns: 380px 1fr; gap: 20px; align-items:start; }
+  @media (max-width: 900px){ .grid{ grid-template-columns: 1fr; } }
+
+  .panel{ background: var(--panel); border:1px solid var(--line); border-radius:6px; padding:18px 18px 20px; position:relative; }
+  .panel::before{ content:''; position:absolute; top:0; left:14px; right:14px; height:1px; background:linear-gradient(90deg,transparent,var(--cyan-dim),transparent);}
+  .panel h2{ font-family:var(--font-display); font-size:14px; letter-spacing:1.5px; text-transform:uppercase; color:var(--cyan); margin:0 0 14px; display:flex; align-items:center; gap:8px;}
+  .panel h2::before{ content:'▸'; color:var(--amber); }
+
+  label{ display:block; font-size:11px; letter-spacing:0.5px; color:var(--muted); margin: 12px 0 5px; text-transform:uppercase; font-family:var(--font-mono);}
+  label:first-child{ margin-top:0; }
+  input, select, textarea{
+    width:100%; background: var(--bg); border:1px solid var(--line); color:var(--text);
+    padding:9px 10px; border-radius:4px; font-family:var(--font-body); font-size:13.5px; outline:none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus, textarea:focus{ border-color:var(--cyan); box-shadow: 0 0 0 2px var(--cyan-dim); }
+  textarea{ resize:vertical; min-height:52px; }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+
+  button{
+    font-family: var(--font-display); font-weight:700; letter-spacing:1px; text-transform:uppercase;
+    font-size:13px; border-radius:4px; border:1px solid var(--cyan); background:transparent; color:var(--cyan);
+    padding:10px 16px; cursor:pointer; transition: all .15s;
+  }
+  button:hover{ background: var(--cyan); color:#04191C; box-shadow:0 0 14px var(--cyan-dim); }
+  button.primary{ background: var(--cyan); color:#04191C; width:100%; margin-top:16px; }
+  button.primary:hover{ box-shadow:0 0 18px var(--cyan); }
+  button.ghost{ border-color: var(--line); color: var(--muted); font-size:11px; padding:6px 10px;}
+  button.ghost:hover{ background:var(--panel-2); color:var(--text); box-shadow:none; }
+  button.danger{ border-color: var(--red); color: var(--red); }
+  button.danger:hover{ background: var(--red); color:#fff; }
+
+  .toolbar{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; align-items:center; }
+  .toolbar select, .toolbar input{ width:auto; min-width:150px; }
+  .toolbar .spacer{ flex:1; }
+
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  th{ text-align:left; font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.5px; color:var(--muted); text-transform:uppercase; padding:8px 10px; border-bottom:1px solid var(--line); cursor:pointer; user-select:none; white-space:nowrap;}
+  th:hover{ color:var(--cyan); }
+  td{ padding:9px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr.best td:first-child{ box-shadow: inset 3px 0 0 var(--green); }
+  tr:hover td{ background: var(--panel-2); }
+  .price{ font-family:var(--font-mono); color:var(--amber); font-weight:600; }
+  .badge{ font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; letter-spacing:0.5px; text-transform:uppercase; display:inline-block;}
+  .badge.pendiente{ background:#3A3320; color:var(--amber); border:1px solid var(--amber); }
+  .badge.recibida{ background:#122A2C; color:var(--cyan); border:1px solid var(--cyan); }
+  .badge.seleccionado{ background:#123A2A; color:var(--green); border:1px solid var(--green); }
+  .badge.descartado{ background:#2E1717; color:var(--red); border:1px solid var(--red); }
+  .empty{ text-align:center; padding:40px 20px; color:var(--muted); font-family:var(--font-mono); font-size:12px; }
+  .empty .core-small{ width:30px; height:30px; margin:0 auto 14px; border-radius:50%; border:2px solid var(--cyan-dim); }
+
+  .rowactions{ display:flex; gap:6px; }
+  .notes-cell{ max-width:160px; color:var(--muted); font-size:11.5px; }
+
+  footer{ text-align:center; margin-top:30px; color:var(--muted); font-family:var(--font-mono); font-size:10.5px; letter-spacing:0.5px; }
+
+  .toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--panel); border:1px solid var(--cyan); color:var(--cyan); font-family:var(--font-mono); font-size:12px; padding:10px 18px; border-radius:5px; opacity:0; transition:all .25s; pointer-events:none; z-index:100; box-shadow:0 0 20px rgba(0,0,0,.5);}
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <div class="core"></div>
+      <div>
+        <h1>Seguimiento de Cotizaciones</h1>
+        <div class="subtitle">J.A.R.V.I.S. // DIVISIÓN DE ADQUISICIONES · COSMÉTICA MAYORISTA AR</div>
+      </div>
+    </div>
+    <div class="statline"><span>Registros activos:</span> <span id="statCount" style="color:var(--amber)">0</span> &nbsp;·&nbsp; <span>Última sync:</span> <span id="statTime">—</span></div>
+  </header>
+
+  <div class="grid">
+
+    <!-- FORM PANEL -->
+    <div class="panel">
+      <h2 id="formTitle">Nueva Cotización</h2>
+      <input type="hidden" id="editId">
+
+      <label>Proveedor</label>
+      <input list="proveedoresList" id="fProveedor" placeholder="Ej: Mely Cosmética">
+      <datalist id="proveedoresList">
+        <option value="Mely Cosmética">
+        <option value="LePré Cosmética Natural">
+        <option value="Ecoderm">
+        <option value="Re Loca Mayorista">
+        <option value="Accurato">
+        <option value="Carmen Suain Biocosmética">
+        <option value="LM Cosmética">
+        <option value="By Andrea Moreno">
+        <option value="Glamazone Argentina">
+        <option value="Casa Yuli">
+        <option value="HECATE Distribuidora">
+        <option value="ANDEMI Distribuidora">
+        <option value="Oxa Pharma">
+        <option value="Dermosoluxion Labs">
+      </datalist>
+
+      <div class="row2">
+        <div>
+          <label>Categoría</label>
+          <select id="fCategoria">
+            <option>Sérum / Skincare</option>
+            <option>Maquillaje</option>
+            <option>Accesorios (Gua Sha, vinchas, etc.)</option>
+            <option>Capilar</option>
+            <option>Packaging / Gift Box</option>
+            <option>Private Label</option>
+            <option>Otro</option>
+          </select>
+        </div>
+        <div>
+          <label>Estado</label>
+          <select id="fEstado">
+            <option value="pendiente">Pendiente</option>
+            <option value="recibida">Cotización recibida</option>
+            <option value="seleccionado">Seleccionado</option>
+            <option value="descartado">Descartado</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Producto cotizado</label>
+      <input id="fProducto" placeholder="Ej: Sérum Ácido Hialurónico 30ml">
+
+      <div class="row2">
+        <div>
+          <label>Precio unitario (ARS)</label>
+          <input id="fPrecio" type="number" step="0.01" placeholder="0.00">
+        </div>
+        <div>
+          <label>Compra mínima (ARS)</label>
+          <input id="fMinimo" type="number" step="1" placeholder="0">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Desc. transferencia (%)</label>
+          <input id="fDescuento" type="number" step="0.1" placeholder="0">
+        </div>
+        <div>
+          <label>Costo envío est. (ARS)</label>
+          <input id="fEnvio" type="number" step="1" placeholder="0">
+        </div>
+      </div>
+
+      <div class="row2">
+        <div>
+          <label>Plazo de entrega</label>
+          <input id="fPlazo" placeholder="Ej: 7-10 días">
+        </div>
+        <div>
+          <label>Precio venta sugerido</label>
+          <input id="fVenta" type="number" step="0.01" placeholder="0.00">
+        </div>
+      </div>
+
+      <label>Contacto (WhatsApp / Email)</label>
+      <input id="fContacto" placeholder="Ej: +54 9 11 xxxx-xxxx">
+
+      <label>Notas</label>
+      <textarea id="fNotas" placeholder="Condiciones especiales, dudas pendientes, etc."></textarea>
+
+      <button class="primary" onclick="saveRecord()">Guardar Cotización</button>
+      <button class="ghost" style="width:100%; margin-top:8px;" onclick="clearForm()">Limpiar formulario</button>
+    </div>
+
+    <!-- TABLE PANEL -->
+    <div class="panel">
+      <h2>Panel Comparativo</h2>
+      <div class="toolbar">
+        <select id="filterCategoria" onchange="render()">
+          <option value="">Todas las categorías</option>
+          <option>Sérum / Skincare</option>
+          <option>Maquillaje</option>
+          <option>Accesorios (Gua Sha, vinchas, etc.)</option>
+          <option>Capilar</option>
+          <option>Packaging / Gift Box</option>
+          <option>Private Label</option>
+          <option>Otro</option>
+        </select>
+        <select id="filterEstado" onchange="render()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="recibida">Cotización recibida</option>
+          <option value="seleccionado">Seleccionado</option>
+          <option value="descartado">Descartado</option>
+        </select>
+        <div class="spacer"></div>
+        <button class="ghost" onclick="exportCSV()">⬇ Exportar CSV</button>
+      </div>
+
+      <div style="overflow-x:auto;">
+        <table id="dataTable">
+          <thead>
+            <tr>
+              <th onclick="setSort('proveedor')">Proveedor</th>
+              <th onclick="setSort('categoria')">Categoría</th>
+              <th onclick="setSort('producto')">Producto</th>
+              <th onclick="setSort('precioTotal')">Costo Total Unit.</th>
+              <th onclick="setSort('margen')">Margen Est.</th>
+              <th onclick="setSort('estado')">Estado</th>
+              <th>Notas</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="emptyState" style="display:none;">
+          <div class="core-small"></div>
+          Sin registros aún, Sr.<br>Ingrese su primera cotización en el panel izquierdo.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>SISTEMA DE ANÁLISIS COMPARATIVO — LOS DATOS SE ALMACENAN LOCALMENTE EN ESTE ARCHIVO · STARK INDUSTRIES PROCUREMENT PROTOCOL v1.0</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let records = [];
+let sortKey = null, sortDir = 1;
+const STORAGE_KEY = 'cotizaciones_cosmetica_ar';
+
+async function loadRecords(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, false);
+    records = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){
+    records = [];
+  }
+  render();
+}
+
+async function persist(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(records), false);
+    document.getElementById('statTime').textContent = new Date().toLocaleTimeString('es-AR');
+  }catch(e){
+    showToast('⚠ Error al guardar. Datos solo en memoria de esta sesión.');
+  }
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+function clearForm(){
+  document.getElementById('editId').value = '';
+  document.getElementById('formTitle').textContent = 'Nueva Cotización';
+  ['fProveedor','fProducto','fPrecio','fMinimo','fDescuento','fEnvio','fPlazo','fVenta','fContacto','fNotas'].forEach(id=>{
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('fCategoria').selectedIndex = 0;
+  document.getElementById('fEstado').selectedIndex = 0;
+}
+
+async function saveRecord(){
+  const proveedor = document.getElementById('fProveedor').value.trim();
+  if(!proveedor){ showToast('⚠ Ingrese el nombre del proveedor'); return; }
+
+  const editId = document.getElementById('editId').value;
+  const rec = {
+    id: editId || 'q_' + Date.now(),
+    proveedor,
+    categoria: document.getElementById('fCategoria').value,
+    estado: document.getElementById('fEstado').value,
+    producto: document.getElementById('fProducto').value.trim(),
+    precio: parseFloat(document.getElementById('fPrecio').value) || 0,
+    minimo: parseFloat(document.getElementById('fMinimo').value) || 0,
+    descuento: parseFloat(document.getElementById('fDescuento').value) || 0,
+    envio: parseFloat(document.getElementById('fEnvio').value) || 0,
+    plazo: document.getElementById('fPlazo').value.trim(),
+    venta: parseFloat(document.getElementById('fVenta').value) || 0,
+    contacto: document.getElementById('fContacto').value.trim(),
+    notas: document.getElementById('fNotas').value.trim(),
+    fecha: editId ? (records.find(r=>r.id===editId)?.fecha || new Date().toISOString()) : new Date().toISOString()
+  };
+
+  if(editId){
+    records = records.map(r => r.id === editId ? rec : r);
+    showToast('✓ Cotización actualizada');
+  } else {
+    records.push(rec);
+    showToast('✓ Cotización guardada');
+  }
+
+  await persist();
+  clearForm();
+  render();
+}
+
+function editRecord(id){
+  const r = records.find(x=>x.id===id);
+  if(!r) return;
+  document.getElementById('editId').value = r.id;
+  document.getElementById('formTitle').textContent = 'Editando Cotización';
+  document.getElementById('fProveedor').value = r.proveedor;
+  document.getElementById('fCategoria').value = r.categoria;
+  document.getElementById('fEstado').value = r.estado;
+  document.getElementById('fProducto').value = r.producto;
+  document.getElementById('fPrecio').value = r.precio || '';
+  document.getElementById('fMinimo').value = r.minimo || '';
+  document.getElementById('fDescuento').value = r.descuento || '';
+  document.getElementById('fEnvio').value = r.envio || '';
+  document.getElementById('fPlazo').value = r.plazo;
+  document.getElementById('fVenta').value = r.venta || '';
+  document.getElementById('fContacto').value = r.contacto;
+  document.getElementById('fNotas').value = r.notas;
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function deleteRecord(id){
+  records = records.filter(r=>r.id!==id);
+  await persist();
+  render();
+  showToast('✓ Registro eliminado');
+}
+
+function computeTotal(r){
+  const base = r.precio * (1 - (r.descuento||0)/100);
+  return base + (r.envio||0) * 0; // envío se muestra aparte; costo unitario no incluye prorateo de envío por simplicidad
+}
+function computeMargin(r){
+  const costoUnit = computeTotal(r);
+  if(!r.venta || !costoUnit) return null;
+  return ((r.venta - costoUnit) / r.venta) * 100;
+}
+
+function setSort(key){
+  if(sortKey === key){ sortDir *= -1; } else { sortKey = key; sortDir = 1; }
+  render();
+}
+
+function render(){
+  const catFilter = document.getElementById('filterCategoria').value;
+  const estFilter = document.getElementById('filterEstado').value;
+
+  let list = records.map(r => ({
+    ...r,
+    precioTotal: computeTotal(r),
+    margen: computeMargin(r)
+  }));
+
+  if(catFilter) list = list.filter(r=>r.categoria===catFilter);
+  if(estFilter) list = list.filter(r=>r.estado===estFilter);
+
+  if(sortKey){
+    list.sort((a,b)=>{
+      let va = a[sortKey], vb = b[sortKey];
+      if(typeof va === 'string') va = va.toLowerCase();
+      if(typeof vb === 'string') vb = vb.toLowerCase();
+      if(va == null) va = -Infinity;
+      if(vb == null) vb = -Infinity;
+      return va > vb ? sortDir : va < vb ? -sortDir : 0;
+    });
+  }
+
+  // Best price per category among "recibida" or "seleccionado"
+  const bestByCategory = {};
+  list.forEach(r=>{
+    if(r.precioTotal > 0 && (r.estado==='recibida' || r.estado==='seleccionado')){
+      if(!bestByCategory[r.categoria] || r.precioTotal < bestByCategory[r.categoria]){
+        bestByCategory[r.categoria] = r.precioTotal;
+      }
+    }
+  });
+
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+  document.getElementById('emptyState').style.display = list.length ? 'none' : 'block';
+  document.getElementById('dataTable').style.display = list.length ? 'table' : 'none';
+  document.getElementById('statCount').textContent = records.length;
+
+  list.forEach(r=>{
+    const tr = document.createElement('tr');
+    const isBest = bestByCategory[r.categoria] === r.precioTotal && r.precioTotal > 0;
+    if(isBest) tr.className = 'best';
+
+    const margenTxt = r.margen === null ? '—' : r.margen.toFixed(1) + '%';
+    const margenColor = r.margen === null ? 'var(--muted)' : (r.margen >= 40 ? 'var(--green)' : r.margen >= 20 ? 'var(--amber)' : 'var(--red)');
+
+    tr.innerHTML = `
+      <td><strong>${escapeHtml(r.proveedor)}</strong>${r.contacto ? `<br><span style="color:var(--muted); font-size:10.5px; font-family:var(--font-mono);">${escapeHtml(r.contacto)}</span>` : ''}</td>
+      <td style="color:var(--muted); font-size:11.5px;">${escapeHtml(r.categoria||'—')}</td>
+      <td>${escapeHtml(r.producto||'—')}</td>
+      <td class="price">${r.precioTotal ? '$' + r.precioTotal.toLocaleString('es-AR', {maximumFractionDigits:2}) : '—'} ${isBest ? '<span style="color:var(--green); font-size:10px;">★ MEJOR</span>' : ''}</td>
+      <td style="color:${margenColor}; font-family:var(--font-mono); font-weight:600;">${margenTxt}</td>
+      <td><span class="badge ${r.estado}">${estadoLabel(r.estado)}</span></td>
+      <td class="notes-cell">${escapeHtml(r.notas||'')}</td>
+      <td>
+        <div class="rowactions">
+          <button class="ghost" onclick="editRecord('${r.id}')">Editar</button>
+          <button class="ghost danger" onclick="deleteRecord('${r.id}')">✕</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function estadoLabel(e){
+  return { pendiente:'Pendiente', recibida:'Recibida', seleccionado:'Seleccionado', descartado:'Descartado' }[e] || e;
+}
+
+function escapeHtml(s){
+  if(s==null) return '';
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+
+function exportCSV(){
+  if(!records.length){ showToast('⚠ No hay registros para exportar'); return; }
+  const headers = ['Proveedor','Categoría','Producto','Precio Unitario','Compra Mínima','Descuento %','Envío','Precio Total Unit.','Precio Venta','Margen %','Plazo','Estado','Contacto','Notas','Fecha'];
+  const rows = records.map(r=>{
+    const total = computeTotal(r);
+    const margen = computeMargin(r);
+    return [r.proveedor, r.categoria, r.producto, r.precio, r.minimo, r.descuento, r.envio, total.toFixed(2), r.venta, margen!==null?margen.toFixed(1):'', r.plazo, estadoLabel(r.estado), r.contacto, r.notas, new Date(r.fecha).toLocaleDateString('es-AR')]
+      .map(v => `"${String(v??'').replace(/"/g,'""')}"`).join(',');
+  });
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'cotizaciones_cosmetica_' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ CSV exportado');
+}
+
+loadRecords();
+</script>
+</body>
+</html>
